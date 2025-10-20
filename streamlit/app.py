@@ -121,7 +121,7 @@ if "preds" in st.session_state:
     st.divider()
 
     if st.button(" Get AI-Summarized Immigration News"):
-        with st.spinner("Fetching latest news from GPT-4o..."):
+        with st.spinner("Fetching latest news from Groq..."):
             news_summary = summarize_recent_news("Canada immigration")
             st.session_state["news_summary"] = news_summary
 
