@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.ensemble import RandomForestRegressor
+from ai_utils import summarize_recent_news
 
 st.set_page_config(page_title=" Canada Interprovincial Migration (Quarterly)", layout="centered")
 
@@ -73,17 +74,32 @@ if st.button("Run Prediction"):
         preds.append(next_pred)
 
         # Append predicted value for next iteration
-        last_rows = pd.concat([last_rows, pd.DataFrame({
-            "Time": [next_time],
-            metric: [next_pred],
-            "lag1": [lag1],
-            "lag4": [lag4]
-        })], ignore_index=True)
+        last_rows = pd.concat([
+            last_rows,
+            pd.DataFrame({
+                "Time": [next_time],
+                metric: [next_pred],
+                "lag1": [lag1],
+                "lag4": [lag4]
+            })
+        ], ignore_index=True)
+
+    # Save results so they persist after reruns
+    st.session_state["metric"] = metric
+    st.session_state["y"] = y
+    st.session_state["preds"] = preds
+    st.session_state["n_future"] = n_future
+
+    # Optional: clear old AI summaries when new prediction runs
+    for key in ["forecast_summary", "news_summary"]:
+        st.session_state.pop(key, None)
 
     # --- Plot results ---
     fig, ax = plt.subplots(figsize=(8, 4))
     ax.plot(df["Time"], y, "o-", label="Historical")
-    future_times = np.arange(df["Time"].max() + 0.25, df["Time"].max() + 0.25 * (n_future + 1), 0.25)
+    future_times = np.arange(df["Time"].max() + 0.25,
+                             df["Time"].max() + 0.25 * (n_future + 1),
+                             0.25)
     ax.plot(future_times, preds, "r--o", label="Random Forest Forecast")
     ax.set_xlabel("Time (Year + Quarter fraction)")
     ax.set_ylabel(metric.replace("_", " ").title())
@@ -98,3 +114,17 @@ if st.button("Run Prediction"):
     })
     st.write(f"### Random Forest Forecast for {metric.replace('_', ' ').title()}")
     st.dataframe(pred_df)
+
+
+# --- If a forecast already exists, show the AI sections ---
+if "preds" in st.session_state:
+    st.divider()
+
+    if st.button(" Get AI-Summarized Immigration News"):
+        with st.spinner("Fetching latest news from GPT-4o..."):
+            news_summary = summarize_recent_news("Canada immigration")
+            st.session_state["news_summary"] = news_summary
+
+    if "news_summary" in st.session_state:
+        st.markdown("### AI Summary of Immigration News")
+        st.write(st.session_state["news_summary"])
